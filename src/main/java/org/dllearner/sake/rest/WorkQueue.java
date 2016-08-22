@@ -13,7 +13,6 @@ import org.dllearner.utilities.ReasoningUtils;
 import org.semanticweb.owlapi.model.OWLClassExpression;
 import org.semanticweb.owlapi.model.OWLIndividual;
 
-import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -32,40 +31,40 @@ public class WorkQueue {
 
 	public Pair<Long,Future<DlLearnerRunner>> enqueue(final CLIBase2 dlLearner) {
 		Future<DlLearnerRunner> future = executor.submit(new DlLearnerRunner(dlLearner, id));
+		Pair<Long, Future<DlLearnerRunner>> ret = Pair.of(id, future);
 		queue.add(Triple.of(id,dlLearner,future));
 		synchronized (this) { id ++; }
-		return Pair.of(id,future);
+		return ret;
 	}
 
-	private static String getResultString(AbstractCELA la) {
-		int current = 1;
-		String str = "";
-		DecimalFormat dfPercent = new DecimalFormat("0.00%");
+	private static List<Map<String, Object>> getResultList(AbstractCELA la) {
+		List<Map<String, Object>> str = new LinkedList<>();
 
 		for (EvaluatedDescription<? extends Score> ed : la.getCurrentlyBestEvaluatedDescriptions().descendingSet()) {
 			// temporary code
 			OWLClassExpression description = ed.getDescription();
 			String descriptionString = StringRenderer.getRenderer().render(description);
 			AbstractClassExpressionLearningProblem<? extends Score> learningProblem = la.getLearningProblem();
+			LinkedHashMap<String, Object> desc = new LinkedHashMap<>();
+			desc.put("description", descriptionString);
+
 			if (learningProblem instanceof PosNegLP) {
 				Set<OWLIndividual> positiveExamples = ((PosNegLP) learningProblem).getPositiveExamples();
 				Set<OWLIndividual> negativeExamples = ((PosNegLP) learningProblem).getNegativeExamples();
 				ReasoningUtils reasoningUtil = learningProblem.getReasoningUtil();
-
-				str += current + ": " + descriptionString + " (pred. acc.: "
-						+ dfPercent.format(reasoningUtil.getAccuracyOrTooWeak2(new AccMethodPredAcc(true), description, positiveExamples, negativeExamples, 1))
-						+ ", F-measure: " + dfPercent.format(reasoningUtil.getAccuracyOrTooWeak2(new AccMethodFMeasure(true), description, positiveExamples, negativeExamples, 1));
+				desc.put("predictive accuracy",
+						reasoningUtil.getAccuracyOrTooWeak2(new AccMethodPredAcc(true), description, positiveExamples, negativeExamples, 1));
+				desc.put("F-measure", reasoningUtil.getAccuracyOrTooWeak2(new AccMethodFMeasure(true), description, positiveExamples, negativeExamples, 1));
 
 				AccMethodTwoValued accuracyMethod = ((PosNegLP) learningProblem).getAccuracyMethod();
 				if (!(accuracyMethod instanceof AccMethodPredAcc)
 						&& !(accuracyMethod instanceof AccMethodFMeasure)) {
-					str += ", " + AnnComponentManager.getName(accuracyMethod) + ": " + dfPercent.format(ed.getAccuracy());
+					desc.put(AnnComponentManager.getName(accuracyMethod), ed.getAccuracy());
 				}
-				str += ")\n";
 			} else {
-				str += current + ": " + descriptionString + " " + dfPercent.format(ed.getAccuracy()) + "\n";
+				desc.put("accuracy", ed.getAccuracy());
 			}
-			current++;
+			str.add(desc);
 		}
 
 		return str;
@@ -74,64 +73,87 @@ public class WorkQueue {
 	public Map<Long,Object> getList() {
 		HashMap<Long, Object> res = new HashMap<>();
 		for (Triple<Long, CLIBase2, Future<DlLearnerRunner>> f : queue) {
-			if (f.getRight().isCancelled()) {
-				res.put(f.getLeft(), "cancelled");
-			} else if (f.getRight().isDone()) {
-				try {
-					DlLearnerRunner dlLearnerRunner = f.getRight().get();
-					if (dlLearnerRunner.isDone()) {
-						HashMap<String,String > res2 = new HashMap<String, String>();
-						res2.put("_state","done");
-						CLIBase2 learner = dlLearnerRunner.getLearner();
-						Map<String, AbstractCELA> algorithmMap = learner.getContext().getBeansOfType(AbstractCELA.class);
-						Iterator<Map.Entry<String, AbstractCELA>> it = algorithmMap.entrySet().iterator();
-						while (it.hasNext()) {
-							Map.Entry<String, AbstractCELA> e = it.next();
-							String name = e.getKey();
-							AbstractCELA la = e.getValue();
-							res2.put(name, getResultString(la));
-						}
-						res.put(f.getLeft(), res2);
-					} else {
-						res.put(f.getLeft(), "exited with error");
-					}
-				} catch (InterruptedException e) {
-					res.put(f.getLeft(), "interrupted");
-				} catch (ExecutionException e) {
-					res.put(f.getLeft(), "exception: " + e.getMessage());
-				}
-			} else {
-				CLIBase2 learner = f.getMiddle();
-				Map<String, AbstractCELA> algorithmMap = learner.getContext().getBeansOfType(AbstractCELA.class);
-				Iterator<Map.Entry<String, AbstractCELA>> it = algorithmMap.entrySet().iterator();
-				HashMap<String,String > res2 = new HashMap<String, String>();
-				res2.put("_state", "waiting");
-				while (it.hasNext()) {
-					Map.Entry<String, AbstractCELA> e = it.next();
-					String name = e.getKey();
-					AbstractCELA la = e.getValue();
-					if (la.isRunning()) {
-						res2.put(name, "current best: " + StringRenderer.getRenderer().render(la.getCurrentlyBestDescription()));
-					} else {
-						res2.put(name, "not running");
-					}
-				}
-				res.put(f.getLeft(), res2);
-			}
+			res.put(f.getLeft(), getEntry(f.getMiddle(), f.getRight()));
 		}
 		return res;
 	}
 
-	public boolean delete(long id) {
+	private Object getEntry(CLIBase2 learner, Future<DlLearnerRunner> future) {
+		if (future.isCancelled()) {
+			return  "cancelled";
+		} else if (future.isDone()) {
+			try {
+				DlLearnerRunner dlLearnerRunner = future.get();
+				if (dlLearnerRunner.isDone()) {
+					Map<String, Object> res2 = new LinkedHashMap<>();
+					res2.put("_state","done");
+					Map<String, AbstractCELA> algorithmMap = learner.getContext().getBeansOfType(AbstractCELA.class);
+					Iterator<Map.Entry<String, AbstractCELA>> it = algorithmMap.entrySet().iterator();
+					while (it.hasNext()) {
+						Map.Entry<String, AbstractCELA> e = it.next();
+						String name = e.getKey();
+						AbstractCELA la = e.getValue();
+						res2.put(name, getResultList(la));
+					}
+					return res2;
+				} else {
+					return "exited with error";
+				}
+			} catch (InterruptedException e) {
+				return "interrupted";
+			} catch (ExecutionException e) {
+				Map<String, String> res2 = new HashMap<>();
+				res2.put("exception", e.getMessage());
+				return res2;
+			}
+		} else {
+			Map<String, AbstractCELA> algorithmMap = learner.getContext().getBeansOfType(AbstractCELA.class);
+			Iterator<Map.Entry<String, AbstractCELA>> it = algorithmMap.entrySet().iterator();
+			Map<String, Object> res2 = new LinkedHashMap<>();
+			res2.put("_state", "waiting");
+			while (it.hasNext()) {
+				Map.Entry<String, AbstractCELA> e = it.next();
+				String name = e.getKey();
+				AbstractCELA la = e.getValue();
+				if (la.isRunning()) {
+					Map<String, Object> details = new LinkedHashMap<>();
+					details.put("_state", "running");
+					details.put("current best description", StringRenderer.getRenderer().render(la.getCurrentlyBestDescription()));
+					res2.put(name, details);
+				} else {
+					res2.put(name, "not running");
+				}
+			}
+			return res2;
+		}
+	}
+
+	public Object get(long id) {
+		Triple<Long, CLIBase2, Future<DlLearnerRunner>> f = getQueueEntry(id);
+		if (f != null) {
+			return getEntry(f.getMiddle(), f.getRight());
+		}
+		return null;
+	}
+
+	private Triple<Long, CLIBase2, Future<DlLearnerRunner>> getQueueEntry(long id) {
 		for (Triple<Long, CLIBase2, Future<DlLearnerRunner>> f : queue) {
 			if (f.getLeft().longValue() == id) {
-				boolean ret = true;
-				if (!f.getRight().isDone()) {
-					ret = f.getRight().cancel(true);
-				}
-				boolean removed = queue.remove(f);
-				return ret && removed;
+				return f;
 			}
+		}
+		return null;
+	}
+
+	public boolean delete(long id) {
+		Triple<Long, CLIBase2, Future<DlLearnerRunner>> f = getQueueEntry(id);
+		if (f != null) {
+			boolean ret = true;
+			if (!f.getRight().isDone()) {
+				ret = f.getRight().cancel(true);
+			}
+			boolean removed = queue.remove(f);
+			return ret && removed;
 		}
 		return false;
 	}

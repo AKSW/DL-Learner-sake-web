@@ -9,6 +9,7 @@ import org.dllearner.configuration.spring.DefaultApplicationContextBuilder;
 import org.dllearner.confparser.ConfParserConfiguration;
 import org.dllearner.core.ComponentInitException;
 import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
@@ -21,9 +22,11 @@ import javax.servlet.ServletContext;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -36,8 +39,22 @@ public class Service {
 	private static WorkQueue queue = new WorkQueue();
 
 	@GET
-	public String hello(@Context ServletContext context) {
-		return "DL-Learner Rest Service";
+	public Response index(@HeaderParam("Accept") String header, @Context ServletContext context) {
+		if (header.contains(MediaType.APPLICATION_JSON)) {
+			LinkedHashMap<String, String> res = new LinkedHashMap<>();
+			res.put("/list", "GET details of all jobs");
+			res.put("/submit", "POST new job");
+			res.put("/{id}", "GET details of job {id}");
+			res.put("/{id}", "DELETE job {id}");
+			return Response.ok((new JSONObject(res)).toJSONString(), MediaType.APPLICATION_JSON_TYPE).build();
+		}
+		return Response.ok(
+				"DL-Learner Rest Service" + "\n"
+				+ "/list" + "\t" + "GET" + "\t" + "get details of all jobs" + "\n"
+				+ "/submit" + "\t" + "POST" + "\t" + "submit a new job" + "\n"
+				+ "/{id}" + "\t" + "GET" + "\t" + "get details of job {id}" + "\n"
+				+ "/{id}" + "\t" + "DELETE" + "\t" + "delete job {id}" + "\n",
+				MediaType.TEXT_PLAIN_TYPE).build();
 	}
 
 	@GET
@@ -112,6 +129,18 @@ public class Service {
 	                                  @Context ServletContext context) {
 		boolean ret = queue.delete(Long.parseLong(id));
 		return Boolean.toString(ret);
+	}
+
+	@GET
+	@Path("{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response jobDetails(@PathParam("id") String id,
+	                         @Context ServletContext context) {
+		Object ret = queue.get(Long.parseLong(id));
+		if (ret != null) {
+			return Response.ok(JSONValue.toJSONString(ret), MediaType.APPLICATION_JSON_TYPE).build();
+		}
+		return Response.status(Response.Status.NOT_FOUND).build();
 	}
 
 	protected static Throwable findPrimaryCause(Exception e) {

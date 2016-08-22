@@ -58,6 +58,9 @@ public class DlConfigConverter {
 		} else if (in instanceof Long
 				&& in.longValue() >= 0) {
 			out.append(in);
+		} else if (in instanceof Double
+				&& in.doubleValue() >= 0) {
+			out.append(in);
 		} else {
 			visit(in.toString());
 		}
