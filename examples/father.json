@@ -1,0 +1,44 @@
+{
+    "comment": [
+	"Father Example",
+	"",
+	"possible solution:",
+	"   male AND EXISTS hasChild.TOP",
+	"",
+	"Copyright (C) 2007, Jens Lehmann",
+	"Converted from father.conf"
+    ],
+    "prefixes": {
+	"comment": "declare some prefixes to use as abbreviations",
+	"ex": "http://example.com/father#"
+    },
+    "ks": {
+	"comment": "knowledge source definition",
+	"type": "OWL File",
+	"fileName": "/path/to/DL-Learner/examples/father.owl"
+    },
+    "reasoner": {
+	"comment": "reasoner",
+	"type": "closed world reasoner",
+	"sources": [ "#ks" ]
+    },
+    "lp": {
+	"comment": "learning problem",
+	"type": "posNegStandard",
+	"positiveExamples": [
+	    "ex:stefan",
+	    "ex:markus",
+	    "ex:martin"
+	],
+	"negativeExamples": [
+	    "ex:heinz",
+	    "ex:anna",
+	    "ex:michelle"
+	]
+    },
+    "alg": {
+	"comment": "create learning algorithm to run",
+	"type": "celoe",
+	"maxExecutionTimeInSeconds": 1
+    }
+}
