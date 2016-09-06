@@ -65,6 +65,25 @@ public class Service {
 		return jsonObject.toJSONString();
 	}
 
+	@GET
+	@Path("submit")
+	@Produces(MediaType.APPLICATION_XHTML_XML)
+	public String submitFormInput(@Context ServletContext servletContext) {
+		return "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \n"
+				+ "      \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n"
+				+ "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\">"
+				+ "<head><title>Submit DL-Learner Job</title></head><body><form method=\"post\"><p>Paste your config below</p>"
+				+ "<textarea name=\"x\"></textarea><br /><input type=\"submit\" /></form></body></html>";
+	}
+
+	@POST
+	@Path("submit")
+	@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+	@Produces(MediaType.APPLICATION_JSON)
+	public String submitForm(@FormParam("x") String input, @Context ServletContext servletContext) throws IOException {
+		return submit(input, servletContext);
+	}
+
 	@POST
 	@Path("submit")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -102,10 +121,12 @@ public class Service {
 			Throwable primaryCause = findPrimaryCause(e);
 			if (primaryCause != null) {
 				ret.put("error", primaryCause.getMessage());
-				return ret.toJSONString();
 			} else {
-				throw e;
+				ret.put("error", e.getMessage());
+				ret.put("stackTrace", e.getStackTrace());
+				//throw e;
 			}
+			return ret.toJSONString();
 		}
 		CLIBase2 dlLearner;
 		if (context.containsBean("cli")) {

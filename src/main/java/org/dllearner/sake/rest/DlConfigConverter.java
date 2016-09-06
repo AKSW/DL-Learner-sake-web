@@ -2,6 +2,7 @@ package org.dllearner.sake.rest;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.text.DecimalFormat;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -58,9 +59,11 @@ public class DlConfigConverter {
 		} else if (in instanceof Long
 				&& in.longValue() >= 0) {
 			out.append(in);
-		} else if (in instanceof Double
-				&& in.doubleValue() >= 0) {
-			out.append(in);
+		} else if (in instanceof Double) {
+			DecimalFormat df = new DecimalFormat("#.###########");
+			String format = df.format(in.doubleValue());
+			if (in.doubleValue() >= 0) out.append(format);
+			else visit(format);
 		} else {
 			visit(in.toString());
 		}
