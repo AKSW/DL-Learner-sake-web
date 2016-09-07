@@ -39,6 +39,7 @@ public class WorkQueue {
 
 	private static List<Map<String, Object>> getResultList(AbstractCELA la) {
 		List<Map<String, Object>> str = new LinkedList<>();
+		VerbalisationHelper verbalisationHelper = new VerbalisationHelper();
 
 		for (EvaluatedDescription<? extends Score> ed : la.getCurrentlyBestEvaluatedDescriptions().descendingSet()) {
 			// temporary code
@@ -47,6 +48,8 @@ public class WorkQueue {
 			AbstractClassExpressionLearningProblem<? extends Score> learningProblem = la.getLearningProblem();
 			LinkedHashMap<String, Object> desc = new LinkedHashMap<>();
 			desc.put("description", descriptionString);
+			desc.put("description.ast", ClassJsonAst.convert(description));
+			desc.put("verbalisation", verbalisationHelper.verb(description));
 
 			if (learningProblem instanceof PosNegLP) {
 				Set<OWLIndividual> positiveExamples = ((PosNegLP) learningProblem).getPositiveExamples();
@@ -118,7 +121,10 @@ public class WorkQueue {
 				if (la.isRunning()) {
 					Map<String, Object> details = new LinkedHashMap<>();
 					details.put("_state", "running");
-					details.put("current best description", StringRenderer.getRenderer().render(la.getCurrentlyBestDescription()));
+
+					OWLClassExpression currentlyBestDescription = la.getCurrentlyBestDescription();
+					details.put("current best description", StringRenderer.getRenderer().render(currentlyBestDescription));
+					details.put("current best description.ast", ClassJsonAst.convert(currentlyBestDescription));
 					res2.put(name, details);
 				} else {
 					res2.put(name, "not running");

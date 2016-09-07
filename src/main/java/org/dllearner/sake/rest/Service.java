@@ -91,11 +91,11 @@ public class Service {
 	public String submit(String input, @Context ServletContext servletContext) throws IOException {
 		JSONObject ret = new JSONObject();
 		JSONParser parser = new JSONParser();
-		System.err.println("input was: " + input);
+		//System.err.println("input was: " + input);
 		Map in;
 		try {
 			Object parse = parser.parse(input, new InsertionOrderedContainerFactory());
-			System.err.println("parse was: " + parse.toString());
+			//System.err.println("parse was: " + parse.toString());
 			if (!(parse instanceof Map)) {
 				ret.put("error", "Not a JSON object: " + parse.getClass());
 				return ret.toJSONString();
@@ -109,7 +109,7 @@ public class Service {
 		//in.writeJSONString();
 		DlConfigConverter dlConfig = new DlConfigConverter();
 		String configStr = dlConfig.convert(in);
-		System.err.println("converted: " + configStr );
+		//System.err.println("converted: " + configStr );
 
 		ByteArrayInputStream stream = new ByteArrayInputStream(configStr.getBytes());
 		IConfiguration configuration = new ConfParserConfiguration(new InputStreamResource(stream));

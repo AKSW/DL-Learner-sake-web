@@ -1,0 +1,57 @@
+{
+  "0": {
+    "_state": "done",
+    "alg": [
+      {
+        "description": "Male and ((hasSibling some (hasChild some Person)) or (married some (hasSibling some (hasChild some Thing)))) and (not (Female))",
+        "description.ast": [
+          "ObjectIntersectionOf",
+          [
+            "Class",
+            "http://www.benchmark.org/family#Male"
+          ],
+          [
+            "ObjectUnionOf",
+            [
+              "ObjectSomeValuesFrom",
+              "http://www.benchmark.org/family#hasSibling",
+              [
+                "ObjectSomeValuesFrom",
+                "http://www.benchmark.org/family#hasChild",
+                [
+                  "Class",
+                  "http://www.benchmark.org/family#Person"
+                ]
+              ]
+            ],
+            [
+              "ObjectSomeValuesFrom",
+              "http://www.benchmark.org/family#married",
+              [
+                "ObjectSomeValuesFrom",
+                "http://www.benchmark.org/family#hasSibling",
+                [
+                  "ObjectSomeValuesFrom",
+                  "http://www.benchmark.org/family#hasChild",
+                  [
+                    "Class",
+                    "http://www.w3.org/2002/07/owl#Thing"
+                  ]
+                ]
+              ]
+            ]
+          ],
+          [
+            "ObjectComplementOf",
+            [
+              "Class",
+              "http://www.benchmark.org/family#Female"
+            ]
+          ]
+        ],
+        "predictive accuracy": 1.0,
+        "F-measure": 1.0
+      }
+    ]
+  }
+}
