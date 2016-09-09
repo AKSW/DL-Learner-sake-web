@@ -3,8 +3,10 @@ package org.dllearner.sake.rest;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -60,7 +62,7 @@ public class DlConfigConverter {
 				&& in.longValue() >= 0) {
 			out.append(in);
 		} else if (in instanceof Double) {
-			DecimalFormat df = new DecimalFormat("#.###########");
+			DecimalFormat df = new DecimalFormat("#.###########", DecimalFormatSymbols.getInstance(Locale.ROOT));
 			String format = df.format(in.doubleValue());
 			if (in.doubleValue() >= 0) out.append(format);
 			else visit(format);
