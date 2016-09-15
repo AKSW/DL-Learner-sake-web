@@ -1,0 +1,59 @@
+{
+	"comment": "Sample configuration for SAKE data processing",
+	"prefixes": {
+		"ex": "http://www.ontos.com/sake/extractor#"
+	},
+	"endpoint": {
+		"comment": "the sparql endpoint",
+		"type": "SPARQL endpoint",
+		"url": "http://136.243.47.194:9090/sparql-pub",
+		"defaultGraphURIs": ["http://sake.ontos.com/testdata/hdm/model",
+		"http://sake.ontos.com/testdata/hdm/gfc_XG000052_2015/",
+		"http://sake.ontos.com/testdata/hdm/gfc_XG000052_2015/pre/",
+		"http://sake.ontos.com/testdata/hdm/gfc_XG000052_2015/suc/"],
+		"useCache": false
+	},
+	"reasoner": {
+		"comment": "the reasoning API to use",
+		"type": "SPARQL Reasoner",
+		"sources": ["#endpoint"]
+	},
+	"algorithm": {
+		"comment": "our learning algorithm",
+		"type": "celoe",
+		"operator": "#operator",
+		"heuristic": "#h",
+		"startClass": "ex:Event",
+		"maxExecutionTimeInSeconds": 600,
+		"maxDepth": 15
+	},
+	"learningProblem": {
+		"comment": "type of the learning problem",
+		"type": "ClassLearningProblem",
+		"classToDescribe": "ex:ClassOfOutliers"
+	},
+	"exprMetric": {
+		"comment": "metric to limit the expressions",
+		"type": "cel_metric",
+		"dataHasValueLength": 1,
+		"objectHasValueLength": 1,
+		"dataSomeValuesLength": 0,
+		"objectSomeValuesLength": 0
+	},
+	"operator": {
+		"comment": "the refinement operator",
+		"type": "rho refinement operator",
+		"reasoner": "#reasoner",
+		"instanceBasedDisjoints": false,
+		"lengthMetric": "#exprMetric",
+		"useCardinalityRestrictions": false,
+		"useBooleanDatatypes": false
+	},
+	"h": {
+		"comment": "the heuristic",
+		"type": "celoe_heuristic",
+		"expansionPenaltyFactor": 0.0001,
+		"startNodeBonus": 0
+	},
+	"verbalisation": false
+}
