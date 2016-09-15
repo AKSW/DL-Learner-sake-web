@@ -9,12 +9,14 @@ import java.util.concurrent.Callable;
  */
 public class DlLearnerRunner implements Callable<DlLearnerRunner> {
 	private final long id;
+	private final boolean verbalisation;
 	CLIBase2 dlLearner;
 	boolean done = false;
 
-	public DlLearnerRunner(CLIBase2 dlLearner, long id) {
+	public DlLearnerRunner(CLIBase2 dlLearner, long id, boolean verbalisation) {
 		this.dlLearner = dlLearner;
 		this.id = id;
+		this.verbalisation = verbalisation;
 	}
 
 	@Override
@@ -26,6 +28,7 @@ public class DlLearnerRunner implements Callable<DlLearnerRunner> {
 
 	public long getId() { return id; }
 	public boolean isDone() { return done; }
+	public boolean isVerbalisation() { return verbalisation; }
 
 	public CLIBase2 getLearner() {
 		return dlLearner;

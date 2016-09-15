@@ -29,17 +29,18 @@ public class WorkQueue {
 	private ExecutorService executor = Executors.newFixedThreadPool(threads);
 	private long id = 0;
 
-	public Pair<Long,Future<DlLearnerRunner>> enqueue(final CLIBase2 dlLearner) {
-		Future<DlLearnerRunner> future = executor.submit(new DlLearnerRunner(dlLearner, id));
+	public Pair<Long,Future<DlLearnerRunner>> enqueue(final CLIBase2 dlLearner, boolean verbalisation) {
+		Future<DlLearnerRunner> future = executor.submit(new DlLearnerRunner(dlLearner, id, verbalisation));
 		Pair<Long, Future<DlLearnerRunner>> ret = Pair.of(id, future);
 		queue.add(Triple.of(id,dlLearner,future));
 		synchronized (this) { id ++; }
 		return ret;
 	}
 
-	private static List<Map<String, Object>> getResultList(AbstractCELA la) {
+	private static List<Map<String, Object>> getResultList(AbstractCELA la, boolean verbalisation) {
 		List<Map<String, Object>> str = new LinkedList<>();
-		VerbalisationHelper verbalisationHelper = new VerbalisationHelper();
+		VerbalisationHelper verbalisationHelper = null;
+		if (verbalisation) verbalisationHelper = new VerbalisationHelper();
 
 		for (EvaluatedDescription<? extends Score> ed : la.getCurrentlyBestEvaluatedDescriptions().descendingSet()) {
 			// temporary code
@@ -49,7 +50,8 @@ public class WorkQueue {
 			LinkedHashMap<String, Object> desc = new LinkedHashMap<>();
 			desc.put("description", descriptionString);
 			desc.put("description.ast", ClassJsonAst.convert(description));
-			desc.put("verbalisation", verbalisationHelper.verb(description));
+			if (verbalisationHelper != null)
+				desc.put("verbalisation", verbalisationHelper.verb(description));
 
 			if (learningProblem instanceof PosNegLP) {
 				Set<OWLIndividual> positiveExamples = ((PosNegLP) learningProblem).getPositiveExamples();
@@ -96,7 +98,7 @@ public class WorkQueue {
 						Map.Entry<String, AbstractCELA> e = it.next();
 						String name = e.getKey();
 						AbstractCELA la = e.getValue();
-						res2.put(name, getResultList(la));
+						res2.put(name, getResultList(la, dlLearnerRunner.isVerbalisation()));
 					}
 					return res2;
 				} else {
