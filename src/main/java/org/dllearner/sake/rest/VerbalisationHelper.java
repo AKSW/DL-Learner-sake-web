@@ -33,7 +33,7 @@ public class VerbalisationHelper {
 
 	public String verb(OWLClassExpression ce) {
 		String s = null;
-		System.err.println(""+ce);
+		//System.err.println(""+ce);
 		s = converter.convert(ce);
 		return s;
 	}

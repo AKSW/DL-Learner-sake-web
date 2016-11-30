@@ -13,7 +13,7 @@ public class DlLearnerRunner implements Callable<DlLearnerRunner> {
 	CLIBase2 dlLearner;
 	boolean done = false;
 
-	public DlLearnerRunner(CLIBase2 dlLearner, long id, boolean verbalisation) {
+	public DlLearnerRunner(long id, CLIBase2 dlLearner, boolean verbalisation) {
 		this.dlLearner = dlLearner;
 		this.id = id;
 		this.verbalisation = verbalisation;

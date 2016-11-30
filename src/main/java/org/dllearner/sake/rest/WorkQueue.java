@@ -1,8 +1,6 @@
 package org.dllearner.sake.rest;
 
 import org.apache.commons.collections.list.SynchronizedList;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
 import org.dllearner.cli.CLIBase2;
 import org.dllearner.core.*;
 import org.dllearner.learningproblems.AccMethodFMeasure;
@@ -20,19 +18,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * Created by Simon Bin on 16-8-22.
+ * Queue of jobs to work on
  */
 public class WorkQueue {
-	private List<Triple<Long,CLIBase2,Future<DlLearnerRunner>>> queue
-			= SynchronizedList.decorate(new LinkedList<Triple<Long,CLIBase2,Future<DlLearnerRunner>>>());
+	private List<WorkQueueEntry> queue
+			= SynchronizedList.decorate(new LinkedList<WorkQueueEntry>());
 	private final int threads = 1;
 	private ExecutorService executor = Executors.newFixedThreadPool(threads);
 	private long id = 0;
 
-	public Pair<Long,Future<DlLearnerRunner>> enqueue(final CLIBase2 dlLearner, boolean verbalisation) {
-		Future<DlLearnerRunner> future = executor.submit(new DlLearnerRunner(dlLearner, id, verbalisation));
-		Pair<Long, Future<DlLearnerRunner>> ret = Pair.of(id, future);
-		queue.add(Triple.of(id,dlLearner,future));
+	public WorkQueueEntry enqueue(Map jsonConfig, boolean verbalisation) {
+		Future<DlLearnerConfigurator> future = executor.submit(new DlLearnerConfigurator(executor, id, jsonConfig, verbalisation));
+		final WorkQueueEntry ret = new WorkQueueEntry(id, jsonConfig, verbalisation, future);
+		queue.add(ret);
 		synchronized (this) { id ++; }
 		return ret;
 	}
@@ -77,33 +75,20 @@ public class WorkQueue {
 
 	public Map<Long,Object> getList() {
 		HashMap<Long, Object> res = new HashMap<>();
-		for (Triple<Long, CLIBase2, Future<DlLearnerRunner>> f : queue) {
-			res.put(f.getLeft(), getEntry(f.getMiddle(), f.getRight()));
+		for (WorkQueueEntry f : queue) {
+			res.put(f.getId(), getConfiguratorEntry(f.getFuture()));
 		}
 		return res;
 	}
 
-	private Object getEntry(CLIBase2 learner, Future<DlLearnerRunner> future) {
-		if (future.isCancelled()) {
-			return  "cancelled";
-		} else if (future.isDone()) {
+	private Object getRunnerEntry(CLIBase2 learner, Future<DlLearnerRunner> runnerFuture) {
+
+		if (runnerFuture.isCancelled()) {
+			return "cancelled";
+		} else if (runnerFuture.isDone()) {
+			DlLearnerRunner dlLearnerRunner;
 			try {
-				DlLearnerRunner dlLearnerRunner = future.get();
-				if (dlLearnerRunner.isDone()) {
-					Map<String, Object> res2 = new LinkedHashMap<>();
-					res2.put("_state","done");
-					Map<String, AbstractCELA> algorithmMap = learner.getContext().getBeansOfType(AbstractCELA.class);
-					Iterator<Map.Entry<String, AbstractCELA>> it = algorithmMap.entrySet().iterator();
-					while (it.hasNext()) {
-						Map.Entry<String, AbstractCELA> e = it.next();
-						String name = e.getKey();
-						AbstractCELA la = e.getValue();
-						res2.put(name, getResultList(la, dlLearnerRunner.isVerbalisation()));
-					}
-					return res2;
-				} else {
-					return "exited with error";
-				}
+				dlLearnerRunner = runnerFuture.get();
 			} catch (InterruptedException e) {
 				return "interrupted";
 			} catch (ExecutionException e) {
@@ -111,6 +96,19 @@ public class WorkQueue {
 				res2.put("exception", e.getMessage());
 				return res2;
 			}
+
+			Map<String, Object> res2 = new LinkedHashMap<>();
+			res2.put("_state", "done");
+			Map<String, AbstractCELA> algorithmMap = learner.getContext().getBeansOfType(AbstractCELA.class);
+			Iterator<Map.Entry<String, AbstractCELA>> it = algorithmMap.entrySet().iterator();
+			while (it.hasNext()) {
+				Map.Entry<String, AbstractCELA> e = it.next();
+				String name = e.getKey();
+				AbstractCELA la = e.getValue();
+				res2.put(name, getResultList(la, dlLearnerRunner.isVerbalisation()));
+			}
+			return res2;
+
 		} else {
 			Map<String, AbstractCELA> algorithmMap = learner.getContext().getBeansOfType(AbstractCELA.class);
 			Iterator<Map.Entry<String, AbstractCELA>> it = algorithmMap.entrySet().iterator();
@@ -136,17 +134,42 @@ public class WorkQueue {
 		}
 	}
 
+	private Object getConfiguratorEntry(Future<DlLearnerConfigurator> configuratorFuture) {
+		if (configuratorFuture.isCancelled()) {
+			return  "cancelled";
+		} else if (configuratorFuture.isDone()) {
+			DlLearnerConfigurator dlLearnerConfigurator = null;
+			try {
+				dlLearnerConfigurator = configuratorFuture.get();
+			} catch (InterruptedException e) {
+				return "interrupted";
+			} catch (ExecutionException e) {
+				Map<String, String> res2 = new HashMap<>();
+				res2.put("exception", e.getMessage());
+				return res2;
+			}
+
+			if (!dlLearnerConfigurator.isDone())
+				return "exited with error";
+
+			return getRunnerEntry(dlLearnerConfigurator.getDlLearner(), dlLearnerConfigurator.getRunnerFuture());
+
+		} else {
+			return  "configuring";
+		}
+	}
+
 	public Object get(long id) {
-		Triple<Long, CLIBase2, Future<DlLearnerRunner>> f = getQueueEntry(id);
+		WorkQueueEntry f = getQueueEntry(id);
 		if (f != null) {
-			return getEntry(f.getMiddle(), f.getRight());
+			return getConfiguratorEntry(f.getFuture());
 		}
 		return null;
 	}
 
-	private Triple<Long, CLIBase2, Future<DlLearnerRunner>> getQueueEntry(long id) {
-		for (Triple<Long, CLIBase2, Future<DlLearnerRunner>> f : queue) {
-			if (f.getLeft().longValue() == id) {
+	private WorkQueueEntry getQueueEntry(long id) {
+		for (WorkQueueEntry f : queue) {
+			if (f.getId().longValue() == id) {
 				return f;
 			}
 		}
@@ -154,15 +177,46 @@ public class WorkQueue {
 	}
 
 	public boolean delete(long id) {
-		Triple<Long, CLIBase2, Future<DlLearnerRunner>> f = getQueueEntry(id);
+		WorkQueueEntry f = getQueueEntry(id);
 		if (f != null) {
 			boolean ret = true;
-			if (!f.getRight().isDone()) {
-				ret = f.getRight().cancel(true);
+			if (!f.getFuture().isDone()) {
+				ret = f.getFuture().cancel(true);
+			} else {
+				try {
+					DlLearnerConfigurator dlLearnerConfigurator = f.getFuture().get();
+					if (!dlLearnerConfigurator.getRunnerFuture().isDone()) {
+						ret = dlLearnerConfigurator.getRunnerFuture().cancel(true);
+					}
+				} catch (InterruptedException | ExecutionException e) {
+					// ignore
+				}
 			}
 			boolean removed = queue.remove(f);
 			return ret && removed;
 		}
 		return false;
+	}
+
+	public void shutdown() {
+		executor.shutdown();
+	}
+
+	public synchronized HashMap<Long, Object> awaitTermination() {
+		HashMap<Long, Object> res = new HashMap<>();
+
+		while (!queue.isEmpty()) {
+			WorkQueueEntry entry = queue.remove(0);
+			try {
+				DlLearnerConfigurator dlLearnerConfigurator = entry.getFuture().get();
+				if (dlLearnerConfigurator.isDone())
+					dlLearnerConfigurator.getRunnerFuture().get();
+			} catch (InterruptedException  | ExecutionException e) {
+				e.printStackTrace();
+			}
+			res.put(entry.getId(), getConfiguratorEntry(entry.getFuture()));
+		}
+		shutdown();
+		return res;
 	}
 }
