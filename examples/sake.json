@@ -1,0 +1,73 @@
+{
+    "comment": "Configuration for SAKE data processing",
+    "prefixes": {
+	"ex": "http://www.ontos.com/sake/extractor#"
+    },
+    "endpoint": {
+	"comment": "the sparql endpoint",
+	"type": "SPARQL endpoint",
+	"url": "http://.../sparql-pub",
+	"retryCount":3,
+	"defaultGraphURIs": [
+	    "http://sake.ontos.com/testdata/hdm/model",
+	    "http://sake.ontos.com/testdata/hdm/gfc_XG000052_2015/",
+	    "http://sake.ontos.com/testdata/hdm/gfc_XG000052_2015/links",
+	    "http://sake.ontos.com/testdata/hdm/gfc_XG000052_2015/outlier"
+	],
+	"useCache": false
+    },
+    "reasoner": {
+	"comment": { "comment": "the reasoning API to use" },
+	"useValueLists": true,
+	"type": "SPARQL Reasoner (Quad)",
+	"precomputeClassHierarchy": true,
+	"sources": ["#endpoint"]
+    },
+    "algorithm": {
+	"comment": "our learning algorithm",
+	"type": "celoe",
+	"operator": "#operator",
+	"heuristic": "#h",
+	"startClass": "ex:Event",
+	"ignoredConcepts": [ "ex:Outlier" ],
+	"maxExecutionTimeInSeconds": 600,
+	"maxDepth": 15
+    },
+    "acc_method":{
+	"type":"pred_acc.ocel"
+    },
+    "learningProblem": {
+	"comment": "type of the learning problem",
+	"type": "PosNegLPStandard",
+	"exampleLoaderHelper": "#exLoader"
+    },
+    "exLoader": {
+	"type": "ExampleLoader",
+	"positiveExamples": "ex:Outlier",
+	"negativeExamples": "ex:Event and not ex:Outlier",
+	"negativeRandomCount": 104
+    },
+    "exprMetric": {
+	"comment": "metric to limit the expressions",
+	"type": "cel_metric",
+	"dataHasValueLength": 1,
+	"objectHasValueLength": 1,
+	"dataSomeValuesLength": 0,
+	"objectSomeValuesLength": 0
+    },
+    "operator": {
+	"comment": "the refinement operator",
+	"type": "rho refinement operator",
+	"reasoner": "#reasoner",
+	"instanceBasedDisjoints": false,
+	"lengthMetric": "#exprMetric",
+	"useCardinalityRestrictions": false,
+	"useBooleanDatatypes": false
+    },
+    "h": {
+	"comment": "the heuristic",
+	"type": "celoe_heuristic",
+	"expansionPenaltyFactor": 0.0001,
+	"startNodeBonus": 0
+    }
+}
