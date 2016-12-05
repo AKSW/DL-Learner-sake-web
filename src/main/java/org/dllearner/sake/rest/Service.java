@@ -23,6 +23,11 @@ import java.util.UUID;
  */
 @Path("")
 public class Service {
+	static {
+		if (System.getProperty("log4j.configuration") == null)
+			System.setProperty("log4j.configuration", "log4j.properties");
+	}
+
 	private static final Logger logger = LoggerFactory.getLogger(Service.class);
 	private static WorkQueue queue = new WorkQueue();
 	private static Map<String, Long> jobMap = new HashMap<>();
