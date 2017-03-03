@@ -123,9 +123,11 @@ public class WorkQueue {
 					details.put("_state", "running");
 
 					OWLClassExpression currentlyBestDescription = la.getCurrentlyBestDescription();
-					details.put("current best description", StringRenderer.getRenderer().render(currentlyBestDescription));
-					details.put("current best description.ast", ClassJsonAst.convert(currentlyBestDescription));
-					res2.put(name, details);
+					if (currentlyBestDescription != null) {
+						details.put("current best description", StringRenderer.getRenderer().render(currentlyBestDescription));
+						details.put("current best description.ast", ClassJsonAst.convert(currentlyBestDescription));
+						res2.put(name, details);
+					}
 				} else {
 					res2.put(name, "not running");
 				}
